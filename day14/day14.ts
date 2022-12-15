@@ -10,36 +10,36 @@ interface ObjectToObjectHash<Type> {
   [index: string]: Type
 }
 
+interface MapOptions<TypeForKey> {
+  encodeKey: (key: TypeForKey) => string
+  decodeKey: (encodedKey: string) => TypeForKey
+}
+
 class Map<TypeForKey, TypeForValue> {
   values: ObjectToObjectHash<TypeForValue>
+  encodeKey: (key: TypeForKey) => string
+  decodeKey: (encodedKey: string) => TypeForKey
 
-  constructor() {
+  constructor(options: MapOptions<TypeForKey>) {
     this.values = {}
+    this.encodeKey = options.encodeKey
+    this.decodeKey = options.decodeKey
   }
 
   at(key: TypeForKey) {
-    return this.values[JSON.stringify(key)]
+    return this.values[this.encodeKey(key)]
   }
 
   set(key: TypeForKey, value: TypeForValue) {
-    this.values[JSON.stringify(key)] = value
+    this.values[this.encodeKey(key)] = value
   }
 
   unset(key: TypeForKey) {
-    delete this.values[JSON.stringify(key)]
+    delete this.values[this.encodeKey(key)]
   }
 
-  map<TypeForRet>(func: (key: TypeForKey, value: TypeForValue) => TypeForRet) {
-    const values: Array<TypeForRet> = []
-
-    for (var key in this.values) {
-      const realKey = JSON.parse(key)
-      const item = this.values[key]
-      const ret = func(realKey, item)
-      values.push(func(realKey, item))
-    }
-
-    return values
+  keys() {
+    return Object.keys(this.values).map((encodedKey) => this.decodeKey(encodedKey))
   }
 }
 
@@ -56,7 +56,15 @@ export class CaveSim {
       })
     })
 
-    this.items = new Map()
+    this.items = new Map({
+      // encodeKey: (coords) => JSON.stringify(coords),
+      // decodeKey: (stringCoords) => JSON.parse(stringCoords),
+      encodeKey: (coords) => [coords.x, coords.y].join('-'),
+      decodeKey: (stringCoords) => {
+        const [x, y] = stringCoords.split('-').map((num) => parseInt(num, 10))
+        return { x, y }
+      },
+    })
     linesCoords.forEach((lineCoords) => {
       for (let index = 1; index < lineCoords.length; index++) {
         const prev = lineCoords[index - 1]
@@ -82,11 +90,12 @@ export class CaveSim {
       sand: 'o',
     }
 
-    const xs = this.items.map((coords, _) => coords.x)
+    const xs: Array<number> = []
+    this.items.keys().map((coords) => xs.push(coords.x))
     const minX = Math.min(...xs)
     const maxX = Math.max(...xs)
     const minY = 0
-    const maxY = Math.max(...this.items.map((coords, _) => coords.y))
+    const maxY = Math.max(...this.items.keys().map((coords) => coords.y))
 
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
@@ -121,7 +130,7 @@ export class CaveSim {
   unitsOfSandBeforeFlowing() {
     let resting = 0
     const pouringCoords = { x: 500, y: 0 }
-    const maxY = Math.max(...this.items.map((coords, _) => coords.y))
+    const maxY = Math.max(...this.items.keys().map((coords) => coords.y))
 
     let currentCoords = pouringCoords
     this.items.set(currentCoords, 'sand')
@@ -147,9 +156,9 @@ export class CaveSim {
   unitsOfSandBeforeBlocking() {
     let resting = 0
     const pouringCoords = { x: 500, y: 0 }
-    const maxY = Math.max(...this.items.map((coords, _) => coords.y))
+    const maxY = Math.max(...this.items.keys().map((coords) => coords.y))
 
-    const xs = this.items.map((coords, _) => coords.x)
+    const xs = this.items.keys().map((coords) => coords.x)
     const minX = Math.min(...xs)
     const maxX = Math.max(...xs)
     const realMinX = minX - maxY

@@ -24,10 +24,6 @@ class Map<TypeForKey, TypeForValue> {
   set(key: TypeForKey, value: TypeForValue) {
     this.values[JSON.stringify(key)] = value
   }
-
-  keys() {
-    Object.keys(this.values).map((keyAsJson) => JSON.parse(keyAsJson))
-  }
 }
 
 class DistanceMap<Type> {
